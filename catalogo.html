@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <!-- Hace que la página se adapte al ancho del celular -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo · KEVLAR</title>
+  <link rel="icon" href="img/logo.png">
+
+  <!-- Fuentes de Google: Bebas Neue (títulos) e Inter (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Scripts, EN ESTE ORDEN: motor SQL, base de datos, funciones de interfaz -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+
+  <!-- ================= BARRA DE NAVEGACIÓN ================= -->
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="img/logo.png" alt="Logo de KEVLAR">
+        <b>KEV<span>LAR</span></b>
+      </a>
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle">
+      <label for="menu-toggle" class="burger" aria-label="Menú"><span></span><span></span><span></span></label>
+
+      <nav class="links">
+        <a href="index.html">Inicio</a>
+        <a href="catalogo.html" class="active">Catálogo</a>
+        <a href="registrar.html">Registrar</a>
+      </nav>
+
+      <!-- app.js pone aquí el botón de sesión -->
+      <div class="session" id="session"></div>
+    </div>
+  </header>
+
+  <!-- Avisos de éxito o error -->
+  <div class="flashes" id="flashes"></div>
+
+  <main>
+
+    <!-- ================= ENCABEZADO DE LA PÁGINA ================= -->
+    <section class="page-head">
+      <div class="container">
+        <h1>Catá<span class="red">logo</span></h1>
+        <p>Trajes, armas de utilería y accesorios. Todo listo para tu próxima misión.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+
+        <!-- Filtros por categoría. Cada enlace recarga la página con ?categoria=...
+             y data-cat sirve para saber cuál botón se marca como activo. -->
+        <div class="filters" id="filtros">
+          <a href="catalogo.html" class="chip" data-cat="">Todo</a>
+          <a href="catalogo.html?categoria=Trajes" class="chip" data-cat="Trajes">Trajes</a>
+          <a href="catalogo.html?categoria=Armas" class="chip" data-cat="Armas">Armas (utilería)</a>
+          <a href="catalogo.html?categoria=Accesorios" class="chip" data-cat="Accesorios">Accesorios</a>
+        </div>
+
+        <!-- Aquí se dibujan las tarjetas de producto (las llena el script de abajo) -->
+        <div class="products" id="productos"><p class="muted">Cargando…</p></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= PIE PÁGINA =================-->
+  <footer class="footer" id="footer"></footer>
+
+  <!-- ================= SCRIPT PÁGINA ================. -->
+  <script>
+    (async () => {
+      const permitidas = ['Trajes', 'Armas', 'Accesorios'];
+      let cat = new URLSearchParams(location.search).get('categoria') || '';
+      if (!permitidas.includes(cat)) cat = '';   // cualquier otro valor = mostrar todo
+
+      document.querySelectorAll('#filtros .chip').forEach(c => {
+        if (c.dataset.cat === cat) c.classList.add('active');
+      });
+
+      try {
+        await initDB();
+        const lista = listarProductos(cat);
+        document.getElementById('productos').innerHTML = lista.length
+          ? lista.map(tarjetaProducto).join('')
+          : '<p class="muted">No hay productos en esta categoría.</p>';
+      } catch (e) {
+        document.getElementById('productos').innerHTML = '<p class="muted">No se pudo cargar la base de datos (revisa tu conexión a internet).</p>';
+      }
+    })();
+  </script>
+</body>
+</html>

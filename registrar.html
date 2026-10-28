@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <!-- Hace que la página se adapte al ancho del celular -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registrar · KEVLAR</title>
+  <link rel="icon" href="img/logo.png">
+
+  <!-- Fuentes de Google: Bebas Neue (títulos) e Inter (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Scripts, EN ESTE ORDEN: motor SQL, base de datos, funciones de interfaz -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+
+  <!-- ================= BARRA DE NAVEGACIÓN ================= -->
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="index.html">
+        <img class="logo-img" src="img/logo.png" alt="Logo de KEVLAR">
+        <b>KEV<span>LAR</span></b>
+      </a>
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle">
+      <label for="menu-toggle" class="burger" aria-label="Menú"><span></span><span></span><span></span></label>
+
+      <nav class="links">
+        <a href="index.html">Inicio</a>
+        <a href="catalogo.html">Catálogo</a>
+        <a href="registrar.html" class="active">Registrar</a>
+      </nav>
+
+      <!-- app.js pone aquí el botón de sesión -->
+      <div class="session" id="session"></div>
+    </div>
+  </header>
+
+  <!-- Avisos de éxito o error (aquí salen los errores de validación) -->
+  <div class="flashes" id="flashes"></div>
+
+  <main>
+
+    <!-- ================= FORMULARIO DE REGISTRO =================
+         Los datos se guardan en la tabla "usuarios" de la base SQL. -->
+    <section class="auth">
+      <div class="auth-card">
+        <h1>Crear <span class="red">cuenta</span></h1>
+        <p class="muted">Tus datos se guardan en la base de datos SQL. La contraseña se almacena cifrada.</p>
+
+        <!-- novalidate: la validación la hacemos nosotros en el script de abajo -->
+        <form id="form-registro" novalidate>
+          <div class="row">
+            <label>Nombre
+              <input type="text" name="nombre" required maxlength="60">
+            </label>
+            <label>Apellido
+              <input type="text" name="apellido" required maxlength="60">
+            </label>
+          </div>
+          <label>Correo electrónico
+            <input type="email" name="email" required maxlength="120">
+          </label>
+          <label>Teléfono <span class="muted">(opcional)</span>
+            <input type="tel" name="telefono" maxlength="20">
+          </label>
+          <div class="row">
+            <label>Contraseña
+              <input type="password" name="password" required minlength="8">
+            </label>
+            <label>Confirmar contraseña
+              <input type="password" name="password2" required minlength="8">
+            </label>
+          </div>
+          <button class="btn btn-red btn-lg block" type="submit">Registrarme</button>
+        </form>
+
+        <p class="alt">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= PIE DE PÁGINA =================
+       Está vacío a propósito: la función footer() de js/app.js lo llena con
+       el logo, el nombre KEVLAR y el código MME-0869 en todas las páginas. -->
+  <footer class="footer" id="footer"></footer>
+
+  <!-- ================= SCRIPT DE ESTA PÁGINA =================
+       Al enviar el formulario:
+       1) evita que la página se recargue,
+       2) valida cada campo y muestra los errores en rojo,
+       3) si todo está bien, guarda al usuario en la base (registrarUsuario en db.js),
+       4) manda a login.html con el aviso "Cuenta creada". -->
+  <script>
+    // Patrón sencillo para comprobar que el correo tenga forma de correo
+    const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    document.getElementById('form-registro').addEventListener('submit', async e => {
+      e.preventDefault();                                   // no recargar la página
+      document.getElementById('flashes').innerHTML = '';    // limpiar errores anteriores
+
+      // Leer los campos y quitar espacios sobrantes
+      const f = new FormData(e.target);
+      const d = Object.fromEntries([...f].map(([k, v]) => [k, String(v).trim()]));
+      d.email = d.email.toLowerCase();
+      d.password = f.get('password');                       // la contraseña va sin recortar
+      const p2 = f.get('password2');
+
+      // Validaciones
+      const errores = [];
+      if (!d.nombre || !d.apellido) errores.push('Nombre y apellido son obligatorios.');
+      if (!emailRe.test(d.email)) errores.push('Ingresa un correo válido.');
+      if (d.telefono && !/^[0-9+\-\s()]{7,20}$/.test(d.telefono)) errores.push('El teléfono no es válido.');
+      if (d.password.length < 8) errores.push('La contraseña debe tener al menos 8 caracteres.');
+      if (d.password !== p2) errores.push('Las contraseñas no coinciden.');
+      if (errores.length) { errores.forEach(x => mostrarMensaje(x, 'error')); return; }
+
+      // Guardar en la base de datos
+      try {
+        await initDB();
+        const r = await registrarUsuario(d);
+        if (!r.ok) { mostrarMensaje(r.error, 'error'); return; }   // por ejemplo: correo repetido
+        guardarMensaje('¡Cuenta creada! Ya puedes iniciar sesión.', 'ok');
+        location.href = 'login.html';
+      } catch (err) {
+        mostrarMensaje('No se pudo conectar con la base de datos (revisa tu conexión a internet).', 'error');
+      }
+    });
+  </script>
+</body>
+</html>
